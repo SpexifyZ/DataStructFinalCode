@@ -1,0 +1,164 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import heapq
+
+# Basic post details
+class SocialMediaPostDetails:
+    def __init__(self,post, datetime,  author):
+        self.post = post # content of the post
+        self.datetime = datetime # date and time of the post
+        self.author = author # Post auther
+
+# includes post views, used for sorting
+class SeePost(SocialMediaPostDetails):
+    def __init__(self, post, datetime, author, views):
+        super().__init__(post, datetime,  author)
+        self.views = views # Number of views
+# Compare post based on the views
+    def __lt__(self, other):
+        #Using reverse comparison to simulate a max-heap
+        return self.views > other.views # higher views are first
+
+# node in primary search tree
+class TreeNode:
+    def __init__(self, post):
+        self.post = post # Post sorted here
+        self.left = None # left child node
+        self.right = None # right side node
+
+
+# manages social media posts
+class MediaManager:
+    def __init__(self):
+        self.posts_by_datetime = {} # the posts are sorted by time
+        self.root = None # main post storage
+        self.heap = [] # used for post with most view
+# Add a new post
+    def createpost(self, post):
+        self.posts_by_datetime[post.datetime] = post # Store the post by time
+        self.insert_bstree(post) # Store post in a structured way
+        heapq.heappush(self.heap, post) # store post based on the views
+# Find a post by time
+    def find_with_datetime(self, datetime):
+        return self.posts_by_datetime.get(datetime, None)
+# Insert a post into a structured storage
+    def insert_bstree(self, post):
+        if not self.root:
+            self.root = TreeNode(post)
+        else:
+            self.insert_bstree_(self.root, post)
+
+    def insert_bstree_(self, node, post):
+        if post.datetime < node.post.datetime:
+            if node.left is None:
+                node.left = TreeNode(post)
+            else:
+                self.insert_bstree_(node.left, post)
+        else:
+            if node.right is None:
+                node.right = TreeNode(post)
+            else:
+                self.insert_bstree_(node.right, post)
+# Find post within the time range
+    def find_range(self, start, end):
+        result = []
+        self.findrange_(self.root, start, end, result)
+        return result
+
+    def findrange_(self, node, start, end, result):
+        if node is not None:
+            if start <= node.post.datetime <= end:
+                result.append(node.post)
+            if start < node.post.datetime:
+                self.findrange_(node.left, start, end, result)
+            if end > node.post.datetime:
+                self.findrange_(node.right, start, end, result)
+# Get the post within the most of you
+    def get_best_post(self):
+        return heapq.heappop(self.heap) if self.heap else None
+# Get all posts in order
+    def get_all_posts(self):
+        result = []
+        self.order_traversal(self.root, result)
+        return result
+# in-order traversal of the structure storage
+    def order_traversal(self, node, result):
+        if node:
+            self.order_traversal(node.left, result)
+            result.append(node.post)
+            self.order_traversal(node.right, result)
+
+
+# GUI setup
+class Application(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Social Media Post Manager") # title of the interface
+        self.geometry("400x300") # size of the interface
+        self.resizable(False, False) # no resizing allowed
+
+        self.manager = MediaManager() # manages posts
+
+        self.add_widgets() # add interface components
+# Add interface component
+    def add_widgets(self):
+        # level and into refilled for post details
+        ttk.Label(self, text="Post Title:").grid(column=0, row=0)
+        self.post_entry = ttk.Entry(self)
+        self.post_entry.grid(column=1, row=0)
+
+        ttk.Label(self, text="Date Time:").grid(column=0, row=1)
+        self.datetime_entry = ttk.Entry(self)
+        self.datetime_entry.grid(column=1, row=1)
+
+        ttk.Label(self, text="Post Author:").grid(column=0, row=2)
+        self.author_entry = ttk.Entry(self)
+        self.author_entry.grid(column=1, row=2)
+
+        ttk.Label(self, text="Views:").grid(column=0, row=3)
+        self.views_entry = ttk.Entry(self)
+        self.views_entry.grid(column=1, row=3)
+
+        # Buttons for actions
+        ttk.Button(self, text="Add Post", command=self.createpost).grid(column=0, row=4)
+        ttk.Button(self, text="See All Posts", command=self.see_all_posts).grid(column=0, row=5)
+        ttk.Button(self, text="Find by Date time", command=self.findpost).grid(column=1, row=4)
+        ttk.Button(self, text="Find Best Post", command=self.find_best_post).grid(column=1, row=5)
+
+# Create a new post
+    def createpost(self):
+        post = self.post_entry.get()
+        datetime = self.datetime_entry.get()
+        author = self.author_entry.get()
+        views = int(self.views_entry.get())
+        new_post = SeePost(post, datetime,  author, views)
+        self.manager.createpost(new_post)
+        messagebox.showinfo("Success", "Post added successfully")
+# Find a post by time
+    def findpost(self):
+        datetime = self.datetime_entry.get()
+        post = self.manager.find_with_datetime(datetime)
+        if post:
+            messagebox.showinfo("Post Found", f"Date time: {post.datetime}\nPost Title: {post.post}\nAuthor: {post.author}")
+        else:
+            messagebox.showinfo("Post Not Found", "No post with the given date time found.")
+# Find the post with the most view
+    def find_best_post(self):
+        post = self.manager.get_best_post()
+        if post:
+            messagebox.showinfo("Best Post", f"Post title: {post.post}\nAuthor: {post.author}\nViews: {post.views}")
+        else:
+            messagebox.showinfo("No Post", "No posts available.")
+# shows all posts
+    def see_all_posts(self):
+        posts = self.manager.get_all_posts()
+        if posts:
+            result = '\n'.join(
+                [f"Post Title: {p.post}, Date time: {p.datetime}, Author: {p.author}, Views: {p.views}" for p in posts])
+            messagebox.showinfo("All Posts", result)
+        else:
+            messagebox.showinfo("No Posts", "No posts available.")
+
+# starts and runs the application
+app = Application()
+app.mainloop()
